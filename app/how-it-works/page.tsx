@@ -30,6 +30,43 @@ export default function HowItWorks() {
           <p className="text-slate-600">Every profile includes a live AI breakdown: pro/con arguments, probability assessment, and detection of coordinated low-weight attack patterns.</p>
         </div>
 
+        {/* Why Claim Your Name? */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-8">
+          <div className="font-semibold text-xl mb-5 tracking-tight">Why Claim Your Name?</div>
+          
+          <div className="space-y-6 text-sm text-slate-600">
+            <div>
+              <span className="font-semibold text-[#0B2545]">Get notified immediately when someone attacks your name.</span><br />
+              The second a negative claim is posted about you, you receive an alert. Most people only find out weeks later, if at all.
+            </div>
+
+            <div>
+              <span className="font-semibold text-[#0B2545]">Five business days to respond before the claim gains momentum.</span><br />
+              You get protected time to gather facts, bring in friends and colleagues to provide context, and organize a proper defense.
+            </div>
+
+            <div>
+              <span className="font-semibold text-[#0B2545]">Mobilize your network at full voting weight.</span><br />
+              Only claimed names can effectively rally supporters. Friends and colleagues can add context and vote on claims with real influence.
+            </div>
+
+            <div>
+              <span className="font-semibold text-[#0B2545]">Access to serious remediation tools.</span><br />
+              Hire professional investigators to find exculpatory evidence, force a structured moderated debate with the claimant (with real consequences if they decline), or reserve a private Deconfliction Gallery with hired experts to resolve the underlying issue.
+            </div>
+
+            <div>
+              <span className="font-semibold text-[#0B2545]">Turn your name into a portable, defensible asset.</span><br />
+              Over time, your PsDiary score and history become something you can actually cite — with employers, partners, media, or the public.
+            </div>
+
+            <div>
+              <span className="font-semibold text-[#0B2545]">Stop being purely reactive.</span><br />
+              Claimed names get to play offense. You control the response window, the narrative, and the tools available to you.
+            </div>
+          </div>
+        </div>
+
         <div className="text-center pt-6">
           <Link href="/sign-in" className="inline-block bg-[#0B2545] text-white px-8 py-3.5 rounded-2xl font-semibold">
             Get started — Claim your name

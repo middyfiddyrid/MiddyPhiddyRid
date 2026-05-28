@@ -19,35 +19,118 @@ export default function Home() {
   const [postText, setPostText] = useState("");
   const [postEvidence, setPostEvidence] = useState("");
 
+  // User-posted claims for demo (so posting actually shows up)
+  const [userPosts, setUserPosts] = useState<any[]>([]);
+
+  // Merge demo people + people created from user posts (so new names appear in Discover)
+  const allPeopleForDiscover = useMemo(() => {
+    // Group user posts by person name
+    const userPeopleMap = new Map<string, any>();
+
+    userPosts.forEach((post) => {
+      const name = post.personName;
+      if (!userPeopleMap.has(name)) {
+        const slug = name.toLowerCase().replace(/\s+/g, "-");
+        userPeopleMap.set(name, {
+          slug,
+          displayName: name,
+          score: 50, // starting neutral score for new entries
+          bio: "New entry from your post (demo)",
+          claims: [],
+          claimedHandle: undefined,
+        });
+      }
+      const person = userPeopleMap.get(name);
+      person.claims.push({
+        id: post.id,
+        text: post.text,
+        category: post.category,
+        poster: post.poster,
+        posterVerified: post.posterVerified,
+        support: post.support || 0,
+        dispute: post.dispute || 0,
+        evidence: post.evidence,
+        timeAgo: post.timeAgo,
+      });
+    });
+
+    const userPeople = Array.from(userPeopleMap.values());
+
+    // Merge: user-created people first (so they appear at top when searching)
+    return [...userPeople, ...DEMO_PEOPLE];
+  }, [userPosts]);
+
   const filteredPeople = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return DEMO_PEOPLE;
-    return DEMO_PEOPLE.filter(
-      (p) =>
-        p.displayName.toLowerCase().includes(q) ||
-        p.slug.includes(q) ||
-        p.bio.toLowerCase().includes(q)
-    );
-  }, [search]);
+    if (!q) return allPeopleForDiscover;
+    return allPeopleForDiscover.filter((p) => {
+      const nameMatch = p.displayName.toLowerCase().includes(q);
+      const bioMatch = p.bio?.toLowerCase().includes(q) ?? false;
+      const claimMatch = p.claims?.some((c: any) =>
+        c.text.toLowerCase().includes(q)
+      ) ?? false;
+      return nameMatch || bioMatch || claimMatch;
+    });
+  }, [search, allPeopleForDiscover]);
 
   const activityFeed = useMemo(() => {
-    return DEMO_PEOPLE.flatMap((p) =>
-      p.claims.map((c) => ({ ...c, person: p }))
-    ).sort((a, b) => a.id < b.id ? 1 : -1).slice(0, 12);
-  }, []);
+    const demoActivity = DEMO_PEOPLE.flatMap((p) =>
+      p.claims.map((c) => ({ ...c, person: p, isUserPost: false }))
+    );
+
+    const userActivity = userPosts.map((post) => {
+      const fakeSlug = post.personName.toLowerCase().replace(/\s+/g, "-");
+      return {
+        ...post,
+        isUserPost: true,
+        person: {
+          displayName: post.personName,
+          slug: fakeSlug,
+        },
+      };
+    });
+
+    return [...userActivity, ...demoActivity]
+      .sort((a, b) => {
+        if (typeof a.id === "string" && typeof b.id !== "string") return -1;
+        if (typeof b.id === "string" && typeof a.id !== "string") return 1;
+        return (b.id as number) - (a.id as number);
+      })
+      .slice(0, 15);
+  }, [userPosts]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!postSubject.trim() || !postText.trim()) return;
+
     setSubmitted(true);
+
+    const newPost = {
+      id: `user-${Date.now()}`,
+      text: postText.trim(),
+      category: postCategory,
+      poster: "You (Demo)",
+      posterVerified: true,
+      support: 0,
+      dispute: 0,
+      evidence: postEvidence.trim() || undefined,
+      timeAgo: "just now",
+      personName: postSubject.trim(),
+    };
+
     setTimeout(() => {
+      setUserPosts(prev => [newPost, ...prev]);
       setSubmitted(false);
       setPostSubject("");
       setPostText("");
       setPostEvidence("");
-      alert(
-        "Claim submitted! (Demo mode — in production this writes to the ledger and triggers email/SMS to watchers.)"
-      );
-    }, 700);
+
+      // Switch to Activity tab so the user sees their claim
+      setTab("activity");
+
+      // Success feedback
+      alert(`Claim about "${postSubject.trim()}" posted!\n\nIt should now appear in the Recent Activity tab and (if it's a new name) in Discover when you search for it.`);
+    }, 600);
   };
 
   return (
@@ -75,6 +158,87 @@ export default function Home() {
           <BookOpen className="w-4 h-4 text-[#C9A24B]" />
           <span>How it works</span>
         </button>
+      </div>
+
+      {/* Why Claim Your Name? — Homepage (concise & punchy) */}
+      <div className="mb-10 rounded-3xl border border-slate-200 bg-white p-7">
+        <div className="mb-4">
+          <div className="text-[#C9A24B] text-xs tracking-[1.5px] font-semibold mb-1">WHY CLAIM YOUR NAME?</div>
+          <h3 className="font-display text-xl tracking-tight text-[#0B2545]">Don’t be a spectator when your name is attacked.</h3>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 text-[15px] text-slate-600">
+          <div>• Get notified the moment anyone posts something negative about you.</div>
+          <div>• Receive five business days to respond before the claim can gain real traction.</div>
+          <div>• Bring your friends and network to add context and vote claims down at full strength.</div>
+          <div>• Unlock real remediation tools: hire investigators, force moderated debates, or create private resolution spaces.</div>
+        </div>
+
+        <div className="mt-5 text-sm">
+          <Link href="/sign-in" className="font-semibold text-[#0B2545] hover:text-[#C9A24B] underline underline-offset-4">
+            Claim your name in 30 seconds →
+          </Link>
+        </div>
+      </div>
+
+      {/* Trending Public Disputes */}
+      <div className="mb-12">
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div>
+            <div className="text-[#C9A24B] text-xs tracking-[1.5px] font-semibold mb-1">TRENDING IN PUBLIC DISCOURSE</div>
+            <h3 className="font-display text-2xl tracking-tighter text-[#0B2545]">High-Profile Reputation Battles</h3>
+          </div>
+          <Link href="/discover" className="text-sm font-medium text-[#C9A24B] hover:underline hidden md:block">
+            Explore the full ledger →
+          </Link>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-3xl p-8 hover:border-[#C9A24B]/40 transition-all group">
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* E. Jean Carroll */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-semibold px-2 py-0.5 bg-rose-100 text-rose-700 rounded">CLAIM</span>
+              </div>
+              <div className="text-xl font-semibold leading-tight tracking-tight text-slate-900">
+                “Donald Trump raped me in a Bergdorf Goodman dressing room.”
+              </div>
+              <div className="mt-2 text-sm text-slate-500">— E. Jean Carroll, 2023</div>
+            </div>
+
+            {/* Donald Trump */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded">RESPONSE</span>
+              </div>
+              <div className="text-xl font-semibold leading-tight tracking-tight text-slate-900">
+                “She’s a perjurious, lying, harlot.”
+              </div>
+              <div className="mt-2 text-sm text-slate-500">— Donald Trump</div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t text-sm text-slate-600 leading-relaxed">
+            One of the most consequential public reputation battles in modern American history. 
+            Imagine receiving an immediate alert, having five business days to respond with your full network at maximum strength, 
+            and access to professional tools to fight back.
+          </div>
+
+          <div className="mt-5">
+            <Link 
+              href="/p/donald-trump" 
+              className="inline-flex items-center text-sm font-semibold text-[#0B2545] group-hover:text-[#C9A24B] transition-colors"
+            >
+              See how this would have played out with a claimed name →
+            </Link>
+          </div>
+        </div>
+
+        <div className="text-center mt-3 md:hidden">
+          <Link href="/discover" className="text-sm font-medium text-[#C9A24B] underline">
+            Explore more examples in the ledger
+          </Link>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -206,16 +370,19 @@ export default function Home() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="section-header text-slate-500 block mb-1.5">
-                  Subject
+                  Person's Full Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={postSubject}
                   onChange={(e) => setPostSubject(e.target.value)}
-                  placeholder="Full name or handle (e.g. Marcus Thompson)"
+                  placeholder="e.g. Elisabeth Grunauer or Donald Trump"
                   required
                   className="w-full border border-slate-200 focus:border-[#C9A24B] transition-colors rounded-2xl px-4 py-3 text-base"
                 />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  This is the name of the person the claim is about.
+                </p>
               </div>
 
               <div>
@@ -313,7 +480,11 @@ export default function Home() {
               <Link
                 key={`${c.person.slug}-${c.id}`}
                 href={`/p/${c.person.slug}`}
-                className="claim-card block bg-white border border-slate-200 rounded-2xl p-5 hover:border-[#C9A24B]/60"
+                className={`claim-card block bg-white border rounded-2xl p-5 hover:border-[#C9A24B]/60 ${
+                  c.isUserPost 
+                    ? "border-[#C9A24B]/50 bg-[#C9A24B]/5" 
+                    : "border-slate-200"
+                }`}
               >
                 <div className="flex items-center gap-2 text-xs mb-2 flex-wrap">
                   <CategoryBadge category={c.category} />
@@ -325,6 +496,12 @@ export default function Home() {
                   >
                     {c.posterVerified ? `@${c.poster}` : "Guest"}
                   </span>
+                  {c.isUserPost && (
+                    <>
+                      <span className="text-slate-400">•</span>
+                      <span className="font-medium text-[#C9A24B]">Your post</span>
+                    </>
+                  )}
                   <span className="text-slate-400">• {c.timeAgo}</span>
                   <span className="text-slate-400">•</span>
                   <span className="text-slate-500">
@@ -337,6 +514,11 @@ export default function Home() {
                 <div className="text-[15px] text-slate-800 leading-snug">
                   {c.text}
                 </div>
+                {c.isUserPost && (
+                  <div className="mt-2 text-[10px] text-[#C9A24B] font-medium">
+                    (Visible in demo — in production this would be saved to the ledger)
+                  </div>
+                )}
               </Link>
             ))}
           </div>
