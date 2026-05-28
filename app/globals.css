@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #0B2545;
+  --gold: #C9A24B;
+}
+
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.section-header {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.claim-card {
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #e2e8f0;
+}
+
+.claim-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  border-color: #C9A24B;
+}
+
+.ps-score {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.verified-badge {
+  background: linear-gradient(90deg, #0B2545, #1e3a5f);
+  color: #C9A24B;
+}
+
+.mini-score {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Global polish to match prototype */
+input, textarea {
+  font-feature-settings: "tnum";
+}
+
+button, a {
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prototype-style primary button */
+.btn-primary {
+  background-color: #0B2545;
+  color: white;
+  font-weight: 600;
+  padding: 0.875rem 2.25rem;
+  border-radius: 16px;
+  font-size: 0.95rem;
+}
+
+.btn-primary:hover {
+  background-color: #132c52;
+}
+
+/* Prototype-style secondary button */
+.btn-secondary {
+  border: 1px solid #C9A24B;
+  color: #0B2545;
+  font-weight: 600;
+  padding: 0.875rem 2.25rem;
+  border-radius: 16px;
+  font-size: 0.95rem;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(201, 162, 75, 0.08);
+}
+
+.rounded-2xl {
+  border-radius: 16px;
+}
+
+.rounded-3xl {
+  border-radius: 24px;
+}
+
+/* Better form elements to match prototype */
+input:focus, textarea:focus {
+  border-color: #C9A24B;
+  outline: none;
+  box-shadow: 0 0 0 1px #C9A24B;
+}
+
+/* Prototype-style subtle section dividers */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+}
