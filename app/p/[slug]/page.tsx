@@ -14,6 +14,7 @@ import {
   Plus,
   RotateCw,
   UserPlus,
+  Users,
 } from "lucide-react";
 import {
   findPerson,
@@ -23,6 +24,7 @@ import {
   type Category,
   type DemoClaim,
 } from "@/lib/demoData";
+import { RemediationCenter } from "@/components/RemediationCenter";
 
 type Filter = "all" | "positive" | "negative";
 type Vote = "support" | "dispute" | "neutral";
@@ -47,7 +49,7 @@ export default function ProfilePage({
   const initialScore = seedPerson?.score ?? 52;
   const initialClaimed = seedPerson?.claimedHandle ?? null;
 
-  const [score] = useState(initialScore);
+  const [score, setScore] = useState(initialScore);
   const [claimedHandle, setClaimedHandle] = useState<string | null>(
     initialClaimed
   );
@@ -62,21 +64,12 @@ export default function ProfilePage({
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [citationCopied, setCitationCopied] = useState(false);
-
-  // New remediation modals
-  const [showSleuthModal, setShowSleuthModal] = useState(false);
-  const [showDebateModal, setShowDebateModal] = useState(false);
-  const [showDeconflictModal, setShowDeconflictModal] = useState(false);
+  const [galleryReserved, setGalleryReserved] = useState<number | null>(null);
 
   const filteredClaims = useMemo(() => {
     if (filter === "all") return claims;
     return claims.filter((c) => c.category === filter);
   }, [filter, claims]);
-
-  const hasNegativeClaim = useMemo(() => 
-    claims.some(c => c.category === "negative"), 
-    [claims]
-  );
 
   const scoreColor = scoreColorClass(score);
   const ringColor = scoreRingColor(score);
@@ -122,6 +115,43 @@ export default function ProfilePage({
     const handle = "you-" + slug.split("-")[0];
     setClaimedHandle(handle);
     setIsWatching(true);
+  }
+
+  // --- Remediation handlers ---
+
+  // Debate declined → strike the claim + its supporting votes, lift the score.
+  function strikeClaim(claimId: number) {
+    const claim = claims.find((c) => c.id === claimId);
+    setClaims((prev) => prev.filter((c) => c.id !== claimId));
+    setVotes((prev) => {
+      const next = { ...prev };
+      delete next[claimId];
+      return next;
+    });
+    if (claim) {
+      const bump = Math.max(5, Math.min(15, Math.round((claim.support + 1) * 3)));
+      setScore((s) => Math.min(100, s + bump));
+    }
+  }
+
+  // Sleuth → file a verified investigator rebuttal that adds context.
+  function addContext(targetClaimId: number) {
+    const target = claims.find((c) => c.id === targetClaimId);
+    const snippet = target
+      ? `“${target.text.slice(0, 60)}${target.text.length > 60 ? "…" : ""}”`
+      : "the disputed claim";
+    const rebuttal: DemoClaim = {
+      id: Date.now(),
+      text: `Investigator report rebutting ${snippet}: primary records and witness statements do not support it. Full report and sources filed.`,
+      category: "factual",
+      poster: "psdiary-investigator",
+      posterVerified: true,
+      support: 2.0,
+      dispute: 0,
+      timeAgo: "just now",
+    };
+    setClaims((prev) => [rebuttal, ...prev]);
+    setScore((s) => Math.min(100, s + 6));
   }
 
   const totalClaims = claims.length;
@@ -237,53 +267,20 @@ export default function ProfilePage({
             {seedPerson?.bio || FALLBACK_BIO}
           </div>
 
-          {/* === NEW: Ways to Improve a Negative Score === */}
-          {hasNegativeClaim && (
-            <div className="mt-6 pt-6 border-t">
-              <div className="font-semibold text-lg tracking-tight text-[#0B2545] mb-1">
-                Ways to Improve This Score
-              </div>
-              <p className="text-sm text-slate-600 mb-4">
-                Low scores don’t have to be permanent. Choose a remediation path.
-              </p>
+          {/* === Ways to Improve a Negative Score === */}
+          <RemediationCenter
+            displayName={displayName}
+            claims={claims}
+            onStrikeClaim={strikeClaim}
+            onAddContext={addContext}
+            onReserveGallery={(seats) => setGalleryReserved(seats)}
+          />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Hire a Sleuth */}
-                <button
-                  onClick={() => setShowSleuthModal(true)}
-                  className="text-left border border-slate-200 hover:border-[#C9A24B]/60 rounded-2xl p-4 transition-all bg-white"
-                >
-                  <div className="font-semibold">Hire a Sleuth</div>
-                  <div className="text-xs text-slate-500 mt-1 leading-snug">
-                    Professional investigator unearths exculpatory evidence or missing context.
-                  </div>
-                  <div className="mt-3 text-sm font-medium text-[#C9A24B]">From $850 →</div>
-                </button>
-
-                {/* Challenge to Debate */}
-                <button
-                  onClick={() => setShowDebateModal(true)}
-                  className="text-left border border-slate-200 hover:border-[#C9A24B]/60 rounded-2xl p-4 transition-all bg-white"
-                >
-                  <div className="font-semibold">Challenge to Moderated Debate</div>
-                  <div className="text-xs text-slate-500 mt-1 leading-snug">
-                    Force a structured debate. If they decline after payment, the claim and supporting votes are removed.
-                  </div>
-                  <div className="mt-3 text-sm font-medium text-[#C9A24B]">From $1,200 →</div>
-                </button>
-
-                {/* Deconfliction Gallery */}
-                <button
-                  onClick={() => setShowDeconflictModal(true)}
-                  className="text-left border border-slate-200 hover:border-[#C9A24B]/60 rounded-2xl p-4 transition-all bg-white"
-                >
-                  <div className="font-semibold">Reserve a Deconfliction Gallery</div>
-                  <div className="text-xs text-slate-500 mt-1 leading-snug">
-                    Hire a private team of mediators and fact-checkers to help resolve the grievance.
-                  </div>
-                  <div className="mt-3 text-sm font-medium text-[#C9A24B]">From $2,400 →</div>
-                </button>
-              </div>
+          {galleryReserved !== null && (
+            <div className="mt-4 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-2xl bg-[#C9A24B]/10 text-[#a07f32] border border-[#C9A24B]/30">
+              <Users className="w-3.5 h-3.5" />
+              Deconfliction gallery active — {galleryReserved} seat
+              {galleryReserved === 1 ? "" : "s"} invited
             </div>
           )}
 
@@ -631,94 +628,6 @@ export default function ProfilePage({
           </Link>
         </div>
       </div>
-
-      {/* ========== REMEDIATION MODALS (Low Score Recovery) ========== */}
-
-      {/* Hire a Sleuth */}
-      {showSleuthModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6">
-            <h3 className="font-display text-2xl tracking-tight">Hire a Sleuth</h3>
-            <p className="mt-3 text-sm text-slate-600">
-              A licensed investigator will be assigned to locate exculpatory evidence, missing context, or witnesses that could materially improve your score.
-            </p>
-            <div className="mt-6 bg-slate-50 rounded-2xl p-4 text-sm">
-              <div className="font-medium">What you receive:</div>
-              <ul className="mt-2 space-y-1 text-slate-600 list-disc pl-5">
-                <li>Full written report within 7 business days</li>
-                <li>Any new evidence submitted directly to the ledger</li>
-                <li>Option to publish findings publicly</li>
-              </ul>
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button onClick={() => setShowSleuthModal(false)} className="flex-1 py-3 rounded-2xl border">Cancel</button>
-              <button
-                onClick={() => {
-                  setShowSleuthModal(false);
-                  alert("Sleuth engagement submitted. You will receive an intake call within 24 hours.");
-                }}
-                className="flex-1 py-3 rounded-2xl bg-[#0B2545] text-white font-semibold"
-              >
-                Pay $850 & Engage
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Challenge to Moderated Debate */}
-      {showDebateModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6">
-            <h3 className="font-display text-2xl tracking-tight">Challenge to Moderated Debate</h3>
-            <p className="mt-3 text-sm text-slate-600">
-              You pay a non-refundable fee. The original claimant has 10 days to accept a structured, recorded debate moderated by a neutral third party.
-            </p>
-            <div className="mt-4 text-sm bg-amber-50 border border-amber-200 rounded-2xl p-4">
-              <strong>Important:</strong> If the claimant declines or fails to respond, the claim and all supporting votes are permanently removed from your profile.
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button onClick={() => setShowDebateModal(false)} className="flex-1 py-3 rounded-2xl border">Cancel</button>
-              <button
-                onClick={() => {
-                  setShowDebateModal(false);
-                  alert("Debate challenge filed. The claimant has been notified and has 10 days to accept.");
-                }}
-                className="flex-1 py-3 rounded-2xl bg-[#0B2545] text-white font-semibold"
-              >
-                Pay $1,200 & Issue Challenge
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Deconfliction Gallery */}
-      {showDeconflictModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6">
-            <h3 className="font-display text-2xl tracking-tight">Reserve a Deconfliction Gallery</h3>
-            <p className="mt-3 text-sm text-slate-600">
-              Create a private, time-limited space where you can hire mediators, fact-checkers, subject-matter experts, or even the original claimant to work toward resolution.
-            </p>
-            <div className="mt-4 text-sm">
-              You control who is invited and how the process is structured. All activity is logged.
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button onClick={() => setShowDeconflictModal(false)} className="flex-1 py-3 rounded-2xl border">Cancel</button>
-              <button
-                onClick={() => {
-                  setShowDeconflictModal(false);
-                  alert("Deconfliction Gallery reserved. You will receive a private link and intake form within 2 hours.");
-                }}
-                className="flex-1 py-3 rounded-2xl bg-[#0B2545] text-white font-semibold"
-              >
-                Reserve Gallery — $2,400
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
